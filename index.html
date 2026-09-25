@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[D&D]Вендинговая Машина Лута - Pixel Edition</title>
+    
+    <link rel="icon" type="image/png" href="logo.png">
+    <!-- Подключаем Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Подключаем пиксельные шрифты -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'VT323', monospace;
+            font-size: 1.25rem;
+            /* Сплошной темный пиксельный фон */
+            background-color: #020617; 
+            color: #e2e8f0;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        h1, .d20-number, .rarity-label, .btn-roll, #item-name {
+            font-family: 'Press Start 2P', cursive;
+            line-height: 1.5;
+        }
+
+        .vending-machine-wrapper {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .vending-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated; 
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Полностью пиксельный циферблат */
+        .dial-container {
+            width: 160px;
+            height: 160px;
+            border-radius: 0; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a; 
+            border: 6px solid #475569; 
+            box-shadow: inset 6px 6px 0px rgba(0,0,0,0.6); 
+            transition: all 0.5s ease-out; 
+            
+            position: absolute;
+            top: 18%; 
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .d20-number {
+            font-size: 3.5rem; 
+            font-weight: normal; 
+            text-shadow: 4px 4px 0px rgba(0, 0, 0, 0.8);
+            transition: color 0.15s ease, text-shadow 0.3s ease;
+        }
+
+        /* 8-битная анимация тряски */
+        .rolling {
+            animation: pixel-shake 0.15s infinite;
+        }
+
+        @keyframes pixel-shake {
+            0%, 100% { transform: translateX(-50%) translate(0, 0); }
+            25% { transform: translateX(-50%) translate(-4px, 4px); }
+            50% { transform: translateX(-50%) translate(4px, -4px); }
+            75% { transform: translateX(-50%) translate(4px, 4px); }
+        }
+
+        /* СВЕЧЕНИЕ (ГЛОУ-ЭФФЕКТЫ) */
+        .glow-terrible { border-color: #dc2626; box-shadow: 0 0 40px #dc262680, inset 0 0 20px #dc262640; }
+        .text-terrible { color: #ef4444; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 15px #ef4444; }
+
+        .glow-junk { border-color: #64748b; box-shadow: 0 0 40px #64748b80, inset 0 0 20px #64748b40; }
+        .text-junk { color: #64748b; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 15px #94a3b8; }
+
+        .glow-potentially-useful { border-color: #0ea5e9; box-shadow: 0 0 40px #0ea5e980, inset 0 0 20px #0ea5e940; }
+        .text-potentially-useful { color: #0ea5e9; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 15px #38bdf8; }
+
+        .glow-useful { border-color: #10b981; box-shadow: 0 0 40px #10b98180, inset 0 0 20px #10b98140; }
+        .text-useful { color: #10b981; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 15px #34d399; }
+
+        .glow-good-catch { border-color: #8b5cf6; box-shadow: 0 0 40px #8b5cf680, inset 0 0 20px #8b5cf640; }
+        .text-good-catch { color: #8b5cf6; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 15px #a78bfa; }
+
+        .glow-great-luck { border-color: #f59e0b; box-shadow: 0 0 50px #f59e0b99, inset 0 0 30px #f59e0b50; }
+        .text-great-luck { color: #d97706; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 20px #fbbf24; }
+
+        /* Блок результата (теперь в виде бумажки) */
+        #result-container {
+            display: none;
+            position: relative;
+            width: 100%;
+            /* Задаем строгий размер, чтобы бумажка не сжималась рядом с автоматом */
+            min-width: 380px; 
+            max-width: 400px;
+            min-height: 400px; 
+            background-image: url('bag_icon.png');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            image-rendering: pixelated; 
+            padding: 150px 50px 30px 50px; 
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
+        #result-container.show {
+            display: block;
+            animation: popIn 0.3s ease-out forwards;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8) translateX(-20px); opacity: 0; }
+            to { transform: scale(1) translateX(0); opacity: 1; }
+        }
+
+        /* Пиксельная кнопка */
+        .btn-roll {
+            background: #1e293b;
+            border: 4px solid #475569;
+            color: #e2e8f0;
+            box-shadow: 4px 4px 0px #000000;
+            position: relative;
+            z-index: 20;
+            image-rendering: pixelated;
+        }
+        .btn-roll:hover:not(:disabled) {
+            border-color: #94a3b8;
+            background: #334155;
+            box-shadow: 4px 4px 0px #000000;
+            transform: translate(-2px, -2px);
+        }
+        .btn-roll:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px #000000;
+        }
+        .btn-roll:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #item-desc {
+            -webkit-text-stroke: 0.4px #ffffff;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <!-- Расширили контейнер с max-w-2xl до max-w-5xl, чтобы оба элемента влезли -->
+    <div class="max-w-5xl w-full flex flex-col items-center gap-8">
+        
+        <div class="text-center mt-2">
+            <h1 class="text-2xl sm:text-3xl tracking-wider text-slate-200 mb-2" style="text-shadow: 4px 4px 0px #000;">Вендинг Лута</h1>
+            <p class="text-slate-400 text-xl" style="text-shadow: 2px 2px 0px #000;">Что-же что-же в сундучке</p>
+        </div>
+
+        <!-- Контейнер-строка: на мобилках в столбец (flex-col), на ПК в строку (md:flex-row) -->
+        <div class="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 w-full">
+            
+            <!-- Левая колонка: Автомат + Кнопка -->
+            <div class="flex flex-col items-center gap-6">
+                <div class="vending-machine-wrapper">
+                    <img src="vending_mechine_icon.png" alt="Вендинговый автомат" class="vending-img">
+                    <div id="dial" class="dial-container">
+                        <span id="dice-number" class="d20-number text-slate-300">20</span>
+                    </div>
+                </div>
+
+                <button id="roll-btn" class="btn-roll px-8 py-4 rounded-none text-xs sm:text-sm uppercase tracking-widest">
+                    Дать монетку
+                </button>
+            </div>
+
+            <!-- Правая колонка: Блок с результатами на бумажке -->
+            <div id="result-container">
+                <div id="item-rarity" class="rarity-label text-[10px] uppercase tracking-[0.2em] mb-4">Редкость</div>
+                <h2 id="item-name" class="text-xl sm:text-2xl mb-4 leading-tight">Название Предмета</h2>
+                
+                <div class="w-full h-1 bg-slate-800 mb-4 rounded"></div>
+                
+                <p id="item-desc" class="text-slate-900 text-2xl leading-relaxed font-bold">
+                    Здесь будет красивое описание предмета.
+                </p>
+            </div>
+            
+        </div>
+        
+    </div>
+
+    <script>
+        const SPIN_DURATION_MS = 1500; 
+
+        const lootConfig = {
+            terrible: {
+                label: "Ужасное",
+                glowClass: "glow-terrible",
+                textClass: "text-terrible",
+                items: [
+                    { name: "Вопящий камень", desc: "Обычный булыжник, который громко кричит после того как его взяли в руки" },
+                    { name: "Капкан", desc: "Он уже активирован, дай спас ловкости." },
+                    { name: "Мимик", desc: "Ну а че ты хотел." },
+                    { name: "Куча пыли", desc: "Кхе кхе" }
+                ]
+            },
+            junk: {
+                label: "Мусор",
+                glowClass: "glow-junk",
+                textClass: "text-junk",
+                items: [
+                    { name: "Ничего", desc: "Ничего - это все. Бля хуйню сморозил" },
+                    { name: "Куча тряпок", desc: "Лучше не нюхать" },
+                    { name: "Тут насрано", desc: "Ну можешь забрать если хочешь" },
+                    { name: "Книга по саморазвитию", desc: "Ну тут даже мне нехуй сказать" }
+                ]
+            },
+            potentially_useful: {
+                label: "Возможно полезное",
+                glowClass: "glow-potentially-useful",
+                textClass: "text-potentially-useful",
+                items: [
+                    { name: "Моток веревки (5м)", desc: "Я ебал вам больше веревки давать" },
+                    { name: "Соль", desc: "Жизнь не сахар" },
+                    { name: "Сахар", desc: "Жизнь не соль" },
+                    { name: "Трава", desc: "Нет не курительная" }
+                ]
+            },
+            useful: {
+                label: "Полезное",
+                glowClass: "glow-useful",
+                textClass: "text-useful",
+                items: [
+                    { name: "1 доллар", desc: "Купи себе чет" },
+                    { name: "Антибиотик", desc: "Легче?" },
+                    { name: "Спрей от ожогов", desc: "Гренка" },
+                    { name: "Сушенные травы", desc: "Может поможет, а может..." },
+                    { name: "Пиво", desc: "Поставь пускай отдыхает" },
+                    { name: "Желтые специи", desc: "СПЕЦИИ ДОБАВЛЯТЬ ПЕРЕД ГОТОВКОЙ" },
+                    { name: "Жаренный фарш", desc: "Шкварчит" },
+                    { name: "Батарейка", desc: "батарейка" },
+                    { name: "Зеленые специи", desc: "Остренько" },
+                    { name: "Салатовые специи", desc: "Кисло-сладкое" },
+                    { name: "Шоколадная стружка", desc: "Нямка" },
+                    { name: "Мятные травы", desc: "Иди подкати к той девушке" },
+                    { name: "Энергетик 'лимонная кислота'", desc: "Кисленько и универсально!" },
+                    { name: "Бинт", desc: "Залататься и вперед" }
+                ]
+            },
+            good_catch: {
+                label: "Хороший улов",
+                glowClass: "glow-good-catch",
+                textClass: "text-good-catch",
+                items: [
+                    { name: "Ладан", desc: "Немного спокойствия" },
+                    { name: "Лесной отвар", desc: "Тебе это полезно" },
+                    { name: "Вино", desc: "Ну и шмурдяк" },
+                    { name: "Батарейка 2шт", desc: "батарейки" },
+                    { name: "Замороженное молоко", desc: "Бьет как кирпич" },
+                    { name: "WD - 40", desc: "Только изоленты не хватает" },
+                    { name: "Синяя изолента", desc: "С ней каждый инженер" },
+                    { name: "Обычный капкан", desc: "В этот раз не активированный" },
+                    { name: "Горный чай", desc: "Ммммм, греет душу" },
+                    { name: "Мятный ментос", desc: "Мамикс обронил..." },
+                    { name: "Кока-кола", desc: "Люто" }
+                ]
+            },
+            great_luck: {
+                label: "Большая удача",
+                glowClass: "glow-great-luck",
+                textClass: "text-great-luck",
+                items: [
+                    { name: "Аптечный набор", desc: "Почти панацея" },
+                    { name: "Батарейка 3шт", desc: "батарейки" },
+                    { name: "Аксессуар", desc: "Иди думай какой ему аксессуар давать" },
+                    { name: "Ром", desc: "Ну и где твой корабль?" },
+                    { name: "Бочонок виски", desc: "....Можно к вам?" },
+                    { name: "Книга черты", desc: "Умни" },
+                    { name: "Канистра бензина", desc: "Ну там вроде 10 ед" },
+                    { name: "5 долларов", desc: "Очень богатый" },
+                    { name: "Оружие", desc: "Вот будет забавно если тебе в итоге деревянную палку дадут" }
+                ]
+            }
+        };
+
+        const dialElement = document.getElementById('dial');
+        const numberElement = document.getElementById('dice-number');
+        const rollBtn = document.getElementById('roll-btn');
+        const resultContainer = document.getElementById('result-container');
+        const itemNameEl = document.getElementById('item-name');
+        const itemRarityEl = document.getElementById('item-rarity');
+        const itemDescEl = document.getElementById('item-desc');
+
+        let isRolling = false;
+        let rollInterval;
+
+        function getRarityCategoryByRoll(roll) {
+            if (roll === 1) return 'terrible';
+            if (roll >= 2 && roll <= 6) return 'junk';
+            if (roll >= 7 && roll <= 12) return 'potentially_useful';
+            if (roll >= 13 && roll <= 16) return 'useful';
+            if (roll >= 17 && roll <= 19) return 'good_catch';
+            if (roll === 20) return 'great_luck';
+            return 'junk'; 
+        }
+
+        function getRandomItemFromCategory(categoryKey) {
+            const category = lootConfig[categoryKey];
+            const items = category.items;
+            const randomIndex = Math.floor(Math.random() * items.length);
+            return {
+                itemData: items[randomIndex],
+                config: category
+            };
+        }
+
+        function clearGlows() {
+            const allGlows = Object.values(lootConfig).map(c => c.glowClass);
+            const allTextClasses = Object.values(lootConfig).map(c => c.textClass);
+            
+            dialElement.classList.remove(...allGlows);
+            numberElement.classList.remove(...allTextClasses);
+            itemRarityEl.classList.remove(...allTextClasses);
+            itemNameEl.classList.remove(...allTextClasses);
+            
+            numberElement.classList.add('text-slate-300');
+            numberElement.style.textShadow = '4px 4px 0px rgba(0, 0, 0, 0.8)'; 
+        }
+
+        function rollDice() {
+            if (isRolling) return;
+            
+            isRolling = true;
+            rollBtn.disabled = true;
+            rollBtn.innerText = "Нука нука...";
+            
+            resultContainer.classList.remove('show');
+            clearGlows();
+            dialElement.classList.add('rolling');
+
+            const finalRoll = Math.floor(Math.random() * 20) + 1;
+            
+            rollInterval = setInterval(() => {
+                const randomVisualNum = Math.floor(Math.random() * 20) + 1;
+                numberElement.innerText = randomVisualNum;
+            }, 60);
+
+            setTimeout(() => {
+                clearInterval(rollInterval);
+                dialElement.classList.remove('rolling');
+                
+                numberElement.innerText = finalRoll;
+                numberElement.classList.remove('text-slate-300');
+                numberElement.style.textShadow = ''; 
+
+                const categoryKey = getRarityCategoryByRoll(finalRoll);
+                const result = getRandomItemFromCategory(categoryKey);
+
+                dialElement.classList.add(result.config.glowClass);
+                numberElement.classList.add(result.config.textClass);
+                
+                itemRarityEl.innerText = result.config.label;
+                itemRarityEl.className = `rarity-label text-[10px] uppercase tracking-[0.2em] mb-4 ${result.config.textClass}`;
+                
+                itemNameEl.innerText = result.itemData.name;
+                itemNameEl.className = `text-xl sm:text-2xl mb-4 leading-tight ${result.config.textClass}`;
+                
+                itemDescEl.innerText = result.itemData.desc;
+
+                resultContainer.classList.add('show');
+
+                isRolling = false;
+                rollBtn.disabled = false;
+                rollBtn.innerText = "Дать монетку";
+                
+            }, SPIN_DURATION_MS); 
+        }
+
+        rollBtn.addEventListener('click', rollDice);
+
+    </script>
+</body>
+</html>
